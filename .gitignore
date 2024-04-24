@@ -48,3 +48,4 @@ po/*~
 # RStudio Connect folder
 rsconnect/
 ai-submit/www/rudderstack.js
+ai-submit/snowflake-details.json

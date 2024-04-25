@@ -187,7 +187,7 @@ server <- function(input, output, session) {
                       submitter = submitter,
                       ai_input = ai_input,
                       ai_output = ai_output,
-                      driver = "SnowflakeDSIIDriver",
+                      driver = "Snowflake",
                       user = snowflake_credentials$username,
                       pass = snowflake_credentials$password,
                       role = snowflake_credentials$role,

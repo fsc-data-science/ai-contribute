@@ -1,5 +1,7 @@
 source("global.R")
 library(shiny)
+library(DBI)
+library(jsonlite)
 
 ui <- fluidPage(
   
@@ -39,7 +41,7 @@ ui <- fluidPage(
                       a(href = "https://flipsidecrypto.xyz/pricing", 
                         class = "data-shares-link", 
                         img(src = "Flipside_icon_white.svg", height = "14px"), 
-                        "Flipside PRO",
+                        "Flipside Pro",
                         onclick = paste0("rudderanalytics.track('",  'ai_submit', "_enterprise')"),
                         target = "_blank"),
                       a(href = "https://twitter.com/flipsidecrypto", 
@@ -89,6 +91,7 @@ ui <- fluidPage(
                )
         )
       ),
+  br(),
   div(class = "context-submit",
       
       fluidRow(
@@ -133,7 +136,7 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
 
-  observeEvent(input$clear, {
+  clear_IO <- function(keep_context){
     updateTextAreaInput(session, inputId = 'ai_output',label = "Output:", value = "",
                         placeholder = "This is the 'ideal output you want to teach the AI to generate by itself. Example:
                            
@@ -147,16 +150,58 @@ server <- function(input, output, session) {
                            select sum(tx_fee) as total_fee 
                            from ethereum.core.fact_transactions 
                            where block_timestamp >= current_date - 7")
-    if(!input$keep_context){
+    if(!keep_context){
       
-    updateTextAreaInput(session, inputId = 'ai_context',label = "Context:", value = "",
-                        placeholder = "This is general information relevant to entire categories of input. Can be blank.
+      updateTextAreaInput(session, inputId = 'ai_context',label = "Context:", value = "",
+                          placeholder = "This is general information relevant to entire categories of input. Can be blank.
                     
                     using flipside crypto's snowflake SQL schema ...")
     }
-    
+  }
+  
+  observeEvent(input$clear, {
+    clear_IO(input$keep_context)
   })  
   
+  observeEvent(input$submit, {
+    ai_context = input$ai_context 
+    ai_input = input$ai_input
+    ai_output = input$ai_output
+    submitter = input$submitter
+    
+    
+    raw_ <- list(
+      ai_context = ai_context, 
+      ai_input = ai_input,
+      ai_output = ai_output
+    )
+    
+    raw_ <- toJSON(raw_)
+    
+    withProgress({
+      
+      incProgress(.1, message = "Collecting & Cleaning")
+      incProgress(.1, message = "Submitting Data")
+  
+      submitSnowflake(raw_ = raw_,
+                      submitter = submitter,
+                      ai_input = ai_input,
+                      ai_output = ai_output,
+                      driver = "SnowflakeDSIIDriver",
+                      user = snowflake_credentials$username,
+                      pass = snowflake_credentials$password,
+                      role = snowflake_credentials$role,
+                      server = snowflake_credentials$server_url,
+                      warehouse = snowflake_credentials$warehouse,
+                      database = snowflake_credentials$database)
+      
+      incProgress(0.8, message = "Added!")
+      
+    })
+    
+    clear_IO(input$keep_context)
+    
+  })
   
 }
 
